@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Audio ZIP for Translation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    async function uploadZip() {
+      const status = document.getElementById("status");
+      const fileInput = document.getElementById("zipFile");
+      const language = document.getElementById("language").value;
+      const gender = document.getElementById("genderToggle").classList.contains("bg-blue-500") ? "Female" : "Male";
+      const progressBar = document.getElementById("progressBar");
+
+      if (!fileInput.files.length) {
+        status.innerText = "Please select a .zip file.";
+        return;
+      }
+
+      if (!fileInput.files[0].name.toLowerCase().endsWith(".zip")) {
+        status.innerText = "Only .zip files are allowed.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      // Create and append config.json
+      const configData = {
+        target_lang: language,
+        gender: gender
+      };
+      const configBlob = new Blob([JSON.stringify(configData)], { type: "application/json" });
+      formData.append("config", configBlob, "config.json");
+
+      status.innerText = "Uploading and Processing...";
+      status.classList.add("animate-pulse");
+      progressBar.classList.remove("hidden");
+      progressBar.value = 0;
+
+      const res = await fetch("/upload", { method: "POST", body: formData });
+
+      if (res.ok) {
+        status.innerText = "✅ Upload successful! Waiting for translation...";
+        await checkTranslatedFiles();
+      } else {
+        status.innerText = "❌ Upload failed: " + (res.error || "Unknown error");
+        progressBar.classList.add("hidden");
+      }
+    }
+
+    async function checkTranslatedFiles() {
+      const status = document.getElementById("status");
+      const downloadLink = document.getElementById("downloadLink");
+      const progressBar = document.getElementById("progressBar");
+
+      for (let i = 0; i < 100; i++) {
+        const res = await fetch("/download", { method: "HEAD" });
+        if (res.ok) {
+          downloadLink.style.display = "inline-block";
+          status.innerText = "✅ Translations ready! Downloading...";
+          progressBar.value = 100;
+          downloadLink.click();
+          return;
+        }
+        progressBar.value = ((i + 1) / 100) * 100;
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+
+      status.innerText = "⏳ Translation may take longer. Please try downloading again in a moment.";
+      progressBar.classList.add("hidden");
+    }
+
+    function toggleGender() {
+      const toggle = document.getElementById("genderToggle");
+      const icon = document.getElementById("toggleIcon");
+      if (toggle.classList.contains("bg-gray-400")) {
+        toggle.classList.replace("bg-gray-400", "bg-blue-500");
+        icon.classList.add("translate-x-8");
+      } else {
+        toggle.classList.replace("bg-blue-500", "bg-gray-400");
+        icon.classList.remove("translate-x-8");
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-6">
+  <div class="bg-gray-800 p-8 rounded-2xl shadow-lg w-full max-w-lg text-center">
+    <h1 class="text-2xl font-bold mb-4 text-blue-400">Audio Translation Tool</h1>
+
+    <label class="block mb-2 text-sm">Upload .ZIP of WAV Files:</label>
+    <input type="file" id="zipFile" accept=".zip" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white" />
+
+    <br><br>
+
+    <label class="block mb-2 text-sm">Select Output Language:</label>
+    <select id="language" class="w-full p-2 rounded bg-gray-700 border border-gray-600 text-white">
+      <option value="brx">Bodo (Preview)</option>
+      <option value="zu">Zulu (Preview)</option>
+      <option value="ml">Malayalam (Test)</option>
+      <option value="ta">Tamil (Test)</option>
+    </select>
+
+    <br><br>
+
+    <label class="block mb-2 text-sm">Select Voice Gender:</label>
+    <div class="flex items-center justify-center space-x-3">
+      <span>Male</span>
+      <div id="genderToggle" onclick="toggleGender()" class="relative inline-block w-16 h-8 cursor-pointer bg-gray-400 rounded-full">
+        <div class="absolute inset-0 rounded-full transition-all"></div>
+        <div id="toggleIcon" class="w-8 h-8 bg-white rounded-full transform transition-all"></div>
+      </div>
+      <span>Female</span>
+    </div>
+
+    <br><br>
+
+    <button onclick="uploadZip()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">Upload</button>
+    
+    <p id="status" class="mt-4 text-yellow-400"></p>
+    
+    <progress id="progressBar" class="w-full mt-4 hidden" value="0" max="100"></progress>
+
+    <a id="downloadLink" href="/download" class="hidden mt-4 inline-block bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded" download>
+      Download Translated ZIP
+    </a>
+  </div>
+</body>
+</html>
