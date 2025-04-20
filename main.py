@@ -2,8 +2,11 @@ from flask import Flask, request, jsonify, send_file, render_template
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from io import BytesIO
 import zipfile
+import os
 
 app = Flask(__name__)
+
+AZURE_STORAGE_CONNECTION_STRING = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
 
 UPLOAD_CONTAINER_NAME = "uploads"
 TRANSLATED_CONTAINER_NAME = "translated"
